@@ -1,12 +1,12 @@
 {
-  "name": "NFL Edge Tuner",
-  "short_name": "NFL Edge",
-  "description": "Moneyline and spread picks from the NFL Edge model, with an interactive weight tuner and season track record.",
+  "name": "Bombsurace Edge",
+  "short_name": "Bombsurace",
+  "description": "Bombsurace Edge -- NFL moneyline and spread picks with a live weight tuner and season track record.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
-  "background_color": "#f6f4ef",
-  "theme_color": "#1c5cab",
+  "background_color": "#0a0c08",
+  "theme_color": "#0a0c08",
   "orientation": "portrait-primary",
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

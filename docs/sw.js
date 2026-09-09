@@ -1,4 +1,4 @@
-// Minimal service worker for the NFL Edge Tuner PWA.
+// Minimal service worker for the Bombsurace Edge PWA.
 //
 // Strategy: network-first for navigation and same-origin GETs, falling back
 // to the last cached copy when offline. Predictions change weekly, so a
@@ -6,7 +6,7 @@
 // no signal -- but we always prefer the freshest data when the network is
 // up. Bump CACHE_NAME any time this file or the shell it caches changes
 // shape, so old clients don't get stuck serving a mismatched cache.
-const CACHE_NAME = "nfl-edge-v1";
+const CACHE_NAME = "bombsurace-edge-v2";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
