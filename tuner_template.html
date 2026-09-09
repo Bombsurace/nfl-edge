@@ -97,7 +97,18 @@
   details.about .about-body code { font-family: 'JetBrains Mono', monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
 
   .layout { display: grid; grid-template-columns: 300px 1fr; gap: 26px; padding: 28px 0; align-items: start; }
-  @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+  /* Sticky only makes sense with a second column beside it to compare
+     against while scrolling. Below the breakpoint the panel and main
+     stack into one column, so sticky positioning here is not just
+     pointless -- on iOS Safari (including home-screen standalone mode)
+     a sticky element taller than the viewport can wedge page scrolling
+     entirely. Force it static, full-length picks table too (no nested
+     scroll box fighting the page for the same swipe gesture). */
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: 1fr; }
+    .panel { position: static !important; top: auto; }
+    .table-wrap { max-height: none !important; }
+  }
 
   .panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 20px 18px; position: sticky; top: 16px; }
   .panel h2 { font-family: 'Archivo', sans-serif; font-size: 15px; font-weight: 700; margin: 0 0 4px; }
