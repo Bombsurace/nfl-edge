@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NFL Edge Tuner</title>
+<meta name="description" content="Moneyline and spread picks from the NFL Edge model, with an interactive weight tuner and season track record.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1c5cab">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NFL Edge">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --surface-0:   #f6f4ef;
+    --surface-1:   #ffffff;
+    --surface-2:   #edeae2;
+    --surface-3:   #e2ded1;
+    --border:      #ddd8cb;
+    --text-primary:   #17181a;
+    --text-secondary: #5c5c56;
+    --text-muted:     #8a897f;
+    --accent:      #1c5cab;
+    --accent-soft: #e4edf9;
+    --away:        #b8551f;
+    --away-soft:   #fbe9dd;
+    --good:        #0ca30c;
+    --good-soft:   #e4f5e2;
+    --critical:    #d03b3b;
+    --critical-soft: #fbe9e7;
+    --axis:        #cac6b8;
+    --track:       #d9d4c5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface-0: #16181a; --surface-1: #1e2124; --surface-2: #26292c; --surface-3: #2e3134;
+      --border: #34373a; --text-primary: #f3f2ee; --text-secondary: #b7b6ad; --text-muted: #85847b;
+      --accent: #6ea6e8; --accent-soft: #22344a; --away: #e2733d; --away-soft: #3a2717; --good: #0ca30c; --good-soft: #16321a;
+      --critical: #d03b3b; --critical-soft: #3a1e1e; --axis: #3c3f42; --track: #3a3d40;
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface-0: #16181a; --surface-1: #1e2124; --surface-2: #26292c; --surface-3: #2e3134;
+    --border: #34373a; --text-primary: #f3f2ee; --text-secondary: #b7b6ad; --text-muted: #85847b;
+    --accent: #6ea6e8; --accent-soft: #22344a; --away: #e2733d; --away-soft: #3a2717; --good: #0ca30c; --good-soft: #16321a;
+    --critical: #d03b3b; --critical-soft: #3a1e1e; --axis: #3c3f42; --track: #3a3d40;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--surface-0); color: var(--text-primary);
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: 'tnum' 1; padding: 0 20px 70px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header { padding: 36px 0 24px; border-bottom: 1px solid var(--border); }
+  .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); font-weight: 500; margin-bottom: 10px; }
+  h1 { font-family: 'Archivo', sans-serif; font-weight: 900; font-size: clamp(26px,4vw,38px); line-height: 1.03; letter-spacing: -.01em; margin: 0 0 10px; text-wrap: balance; }
+  header p { color: var(--text-secondary); font-size: 14.5px; max-width: 68ch; line-height: 1.55; margin: 0; }
+  header p strong { color: var(--text-primary); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 300px 1fr; gap: 26px; padding: 28px 0; align-items: start; }
+  @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 20px 18px; position: sticky; top: 16px; }
+  .panel h2 { font-family: 'Archivo', sans-serif; font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+  .panel .panel-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 18px; line-height: 1.5; }
+
+  .slider-block { margin-bottom: 22px; }
+  .slider-block:last-child { margin-bottom: 4px; }
+  .slider-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
+  .slider-name { font-size: 13.5px; font-weight: 600; }
+  .slider-mult { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: var(--accent); font-weight: 700; }
+  .slider-conf { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4; }
+  .slider-conf.strong { color: var(--good); }
+  .slider-conf.weak { color: var(--text-muted); }
+
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px;
+    background: var(--track); outline: none; margin: 6px 0 4px;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 17px; height: 17px; border-radius: 50%;
+    background: var(--accent); cursor: pointer; border: 2px solid var(--surface-1); box-shadow: 0 0 0 1px var(--accent);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 17px; height: 17px; border-radius: 50%; background: var(--accent); cursor: pointer;
+    border: 2px solid var(--surface-1); box-shadow: 0 0 0 1px var(--accent);
+  }
+  .tick-row { display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; padding: 0 1px; }
+  .tick-row span:nth-child(3) { color: var(--accent); font-weight: 700; }
+
+  .reset-btn {
+    width: 100%; margin-top: 6px; padding: 9px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text-secondary); font-family: 'Inter'; font-size: 12.5px;
+    font-weight: 600; cursor: pointer;
+  }
+  .reset-btn:hover { background: var(--surface-3); }
+
+  .panel-divider { height: 1px; background: var(--border); margin: 4px 0 22px; }
+  .edge-slider-note { font-size: 11px; color: var(--text-muted); margin-top: 8px; line-height: 1.45; }
+
+  .main { min-width: 0; }
+  .toggle-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .mode-toggle, .market-toggle { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 3px; }
+  .mode-btn, .market-btn {
+    font-family: 'Inter'; font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 6px;
+    border: none; background: transparent; color: var(--text-secondary); cursor: pointer;
+  }
+  .mode-btn.active, .market-btn.active { background: var(--surface-1); color: var(--text-primary); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .toggle-sep { width: 1px; align-self: stretch; background: var(--border); }
+  .forecast-note { font-size: 11.5px; color: var(--text-muted); }
+  .forecast-note.live { color: var(--good); }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+  .kpi { background: var(--surface-1); padding: 15px 16px; display: flex; flex-direction: column; gap: 5px; }
+  .kpi .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 500; }
+  .kpi .value { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 22px; line-height: 1; transition: color .15s; }
+  .kpi .value.pos { color: var(--good); } .kpi .value.neg { color: var(--critical); }
+  .kpi .sub { font-size: 11.5px; color: var(--text-secondary); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 9px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); font-weight: 500; position: sticky; top: 0; background: var(--surface-1); }
+  td.num { text-align: right; font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  td.pos { color: var(--good); font-weight: 600; } td.neg { color: var(--critical); font-weight: 600; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  .pill.yes { background: var(--good-soft); color: var(--good); }
+  .pill.no { background: var(--surface-2); color: var(--text-muted); }
+  .pill.correct { background: var(--good-soft); color: var(--good); }
+  .pill.incorrect { background: var(--critical-soft); color: var(--critical); }
+  .pill.pending, .pill.push { background: var(--surface-2); color: var(--text-muted); }
+
+  .week-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .week-pill {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; padding: 6px 12px;
+    border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2);
+    color: var(--text-secondary); cursor: pointer;
+  }
+  .week-pill.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .conf-num { font-weight: 700; }
+  .conf-pct { display: block; font-size: 10px; font-weight: 500; color: var(--text-muted); margin-top: 1px; }
+  .side-tag { display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: 10px; font-weight: 700; font-family: 'JetBrains Mono', monospace; letter-spacing: .03em; margin-left: 7px; vertical-align: middle; }
+  .side-tag.home { background: var(--accent-soft); color: var(--accent); }
+  .side-tag.away { background: var(--away-soft); color: var(--away); }
+  .table-wrap { border: 1px solid var(--border); border-radius: 12px; overflow: auto; max-height: 560px; background: var(--surface-1); }
+
+  .disclaimer { background: var(--accent-soft); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; padding: 13px 16px; font-size: 13px; line-height: 1.55; color: var(--text-primary); margin: 20px 0 0; }
+  .disclaimer code { font-family: 'JetBrains Mono', monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+  footer { padding: 28px 0 8px; color: var(--text-muted); font-size: 12px; line-height: 1.7; border-top: 1px solid var(--border); margin-top: 10px; }
+  footer code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+
+  .loading-row td { color: var(--text-muted); text-align: center; padding: 30px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">nfl_edge &middot; interactive</div>
+    <h1>How much should each factor matter?</h1>
+    <p>
+      Team strength (Elo) is the backbone. The eleven sliders add named, adjustable
+      weight on top of it &mdash; <strong>QB rating differential</strong>, <strong>weather
+      severity</strong>, <strong>extra home-field emphasis</strong> beyond what Elo already
+      accounts for, <strong>rest advantage</strong>, <strong>divisional-game
+      closeness</strong>, <strong>offensive</strong> / <strong>defensive EPA-per-play
+      differentials</strong> &mdash; each team's real play-by-play efficiency, season-to-date,
+      not just their record &mdash; <strong>sack rate allowed</strong> / <strong>sack rate
+      generated</strong> &mdash; protection and pass rush, the closest free public data gets to
+      pressure &mdash; and <strong>travel distance</strong> / <strong>time-zone shift</strong>
+      &mdash; how much farther, and how many more zones, the away team crossed to be there. The
+      same sliders drive two separate models: a <strong>moneyline</strong>
+      win-probability model and a <strong>spread</strong> margin-of-victory model, switchable
+      below. Each starts at the value fit from 855 real games &mdash; drag a slider and every
+      pick, and the full 855-game backtest, recomputes instantly in your browser. Weather uses
+      a live forecast (no API key) for upcoming outdoor games where one is reachable; where it
+      isn't (see the forecast note below the picks), it falls back to the same neutral
+      treatment as an indoor game rather than guessing. A separate <strong>betting bar</strong>
+      slider at the bottom of the panel controls how big an edge a pick needs before it counts
+      as a "YES" &mdash; raise it to see how pick volume and ROI change as you get pickier.
+    </p>
+  </header>
+
+  <div class="layout">
+    <div class="panel" id="panel">
+      <h2>Emphasis</h2>
+      <p class="panel-sub">Position 3 = what the data fit. 1 = ignore the factor. 5 = lean on it twice as hard as the data alone suggested.</p>
+      <div id="sliders"></div>
+      <button class="reset-btn" id="resetBtn">Reset to data-fit (all at 3)</button>
+
+      <div class="panel-divider"></div>
+      <h2>Betting bar</h2>
+      <p class="panel-sub">How big an edge do you need before it's worth a bet? Everything below your line still shows &mdash; it just won&rsquo;t get a "YES" and won&rsquo;t count in the flagged/backtest numbers.</p>
+      <div class="slider-block" id="edgeBlock">
+        <div class="slider-top"><span class="slider-name">Minimum edge</span><span class="slider-mult" id="edge-value"></span></div>
+        <div class="slider-conf" id="edge-conf"></div>
+        <input type="range" min="0" max="20" step="0.5" value="2" id="edgeSlider">
+        <div class="tick-row"><span>0%</span><span>5%</span><span>10%</span><span>15%</span><span>20%+</span></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="toggle-row">
+        <div class="mode-toggle">
+          <button class="mode-btn active" data-mode="week">This week&rsquo;s picks</button>
+          <button class="mode-btn" data-mode="backtest">Full backtest &middot; 855 games</button>
+          <button class="mode-btn" data-mode="tracker">Track record</button>
+        </div>
+        <div class="toggle-sep" id="marketSep"></div>
+        <div class="market-toggle" id="marketToggle">
+          <button class="market-btn active" data-market="ml">Moneyline</button>
+          <button class="market-btn" data-market="spread">Spread</button>
+        </div>
+      </div>
+
+      <div id="view-week">
+        <div class="kpi-grid" id="week-kpis"></div>
+        <div class="table-wrap">
+          <table>
+            <thead id="week-head"></thead>
+            <tbody id="week-body"><tr class="loading-row"><td colspan="7">Loading&hellip;</td></tr></tbody>
+          </table>
+        </div>
+        <div class="disclaimer forecast-note" id="forecastNote"></div>
+      </div>
+
+      <div id="view-backtest" style="display:none">
+        <div class="kpi-grid" id="bt-kpis"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Segment</th><th class="num">n</th><th class="num">Win%</th><th class="num">Units</th><th class="num">ROI</th></tr></thead>
+            <tbody id="bt-body"></tbody>
+          </table>
+        </div>
+        <div class="disclaimer" id="btDisclaimer"></div>
+      </div>
+
+      <div id="view-tracker" style="display:none">
+        <div class="kpi-grid" id="tracker-kpis"></div>
+        <div class="week-pills" id="tracker-weeks"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Game</th><th class="num">Final</th><th>ML pick</th><th class="num">ML conf</th><th>ML result</th><th>Spread pick</th><th class="num">Spread conf</th><th>ATS result</th></tr></thead>
+            <tbody id="tracker-body"></tbody>
+          </table>
+        </div>
+        <div class="disclaimer" id="trackerDisclaimer"></div>
+      </div>
+
+      <div class="disclaimer" id="dataConfidenceNote"></div>
+    </div>
+  </div>
+
+  <footer>
+    Generated <span id="genDate"></span> from <code>nfl_edge.export_client_data</code>. Training window
+    2023&ndash;2025, 855 games with real closing lines. QB, weather, EPA (not opponent-adjusted), sack
+    rate (a proxy for pressure -- true pressure charting isn't public data), travel time zones
+    (standard-time offsets, no DST calendar), and the spread model's cover probability are
+    documented approximations &mdash; see <code>docs/DESIGN.md</code> for exactly how each is
+    built and its known limitations.
+  </footer>
+</div>
+
+<script id="edge-data" type="application/json">__DATA_JSON__</script>
+<script>
+(function () {
+  const DATA = JSON.parse(document.getElementById('edge-data').textContent);
+  const W = DATA.base_weights;           // moneyline logistic weights
+  const MW = DATA.margin_weights;        // spread margin-regression weights
+  const RESID_STD = DATA.margin_resid_std || 13.5;
+  const FACTORS = [
+    { key: 'elo_diff', label: 'Team strength (Elo)', locked: true },
+    { key: 'qb_diff', label: 'QB rating differential', locked: false },
+    { key: 'weather_severity', label: 'Weather severity', locked: false },
+    { key: 'home_extra', label: 'Extra home-field emphasis', locked: false },
+    { key: 'rest_diff', label: 'Rest advantage', locked: false },
+    { key: 'div_game', label: 'Divisional-game closeness', locked: false },
+    { key: 'epa_off_diff', label: 'Offensive EPA/play differential', locked: false },
+    { key: 'epa_def_diff', label: 'Defensive EPA/play differential', locked: false },
+    { key: 'sack_allowed_diff', label: 'Sack rate allowed differential (protection)', locked: false },
+    { key: 'sack_generated_diff', label: 'Sack rate generated differential (pass rush)', locked: false },
+    { key: 'travel_distance_diff', label: 'Travel distance differential', locked: false },
+    { key: 'travel_tz_diff', label: 'Time-zone shift differential', locked: false },
+  ];
+  const POS_TO_MULT = { 1: 0, 2: 0.5, 3: 1, 4: 1.5, 5: 2 };
+
+  const GUARD = { edgeMinBase: 0.02, favFloor: -250, favExtra: 0.02, dogCap: 300, dogExtra: 0.02, coinBand: 0.05, coinExtra: 0.01 };
+  const KELLY_STAKE = 10;
+
+  function americanProfitPerDollar(odds) { return odds > 0 ? odds / 100 : 100 / (-odds); }
+  function fairML(p) { p = Math.min(Math.max(p, 1e-6), 1 - 1e-6); return p >= 0.5 ? -100 * p / (1 - p) : 100 * (1 - p) / p; }
+  function expectedValue(p, odds) { const win = americanProfitPerDollar(odds); return p * win - (1 - p) * 1; }
+  function requiredEdge(odds, p) {
+    let req = GUARD.edgeMinBase;
+    if (odds <= GUARD.favFloor) req += GUARD.favExtra;
+    if (odds >= GUARD.dogCap) req += GUARD.dogExtra;
+    if (Math.abs(p - 0.5) <= GUARD.coinBand) req += GUARD.coinExtra;
+    return req;
+  }
+  function sigmoid(z) { return 1 / (1 + Math.exp(-z)); }
+  // Abramowitz & Stegun 7.1.26 -- accurate to ~1.5e-7, plenty for a cover
+  // probability. No stats library needed for one function.
+  function erf(x) {
+    const sign = x < 0 ? -1 : 1; x = Math.abs(x);
+    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const t = 1/(1+p*x);
+    const y = 1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+    return sign*y;
+  }
+  function normSf(z) { return 0.5 * (1 - erf(z / Math.SQRT2)); } // P(Z > z), standard normal
+
+  function currentMultipliers() {
+    const m = {};
+    FACTORS.forEach(f => { m[f.key] = f.locked ? 1 : POS_TO_MULT[state[f.key]]; });
+    return m;
+  }
+
+  // ---------------- moneyline model ----------------
+  function logitFor(game, mult) {
+    let z = W.intercept;
+    FACTORS.forEach(f => { z += (W[f.key] || 0) * mult[f.key] * (game[f.key] || 0); });
+    return z;
+  }
+
+  function evaluateGame(game, mult) {
+    const pHome = sigmoid(logitFor(game, mult));
+    const pAway = 1 - pHome;
+    const sides = [
+      { side: 'home', team: game.home, p: pHome, odds: game.home_ml },
+      { side: 'away', team: game.away, p: pAway, odds: game.away_ml },
+    ].map(s => ({ ...s, edge: expectedValue(s.p, s.odds), fair: fairML(s.p), req: requiredEdge(s.odds, s.p) }));
+    const best = sides[0].edge >= sides[1].edge ? sides[0] : sides[1];
+    best.betFlag = best.edge >= best.req;
+    return best;
+  }
+
+  function profitFor(pick, game) {
+    if (game.home_win === null || game.home_win === undefined) return null;
+    const won = (pick.side === 'home') === (game.home_win === 1);
+    return won ? KELLY_STAKE * americanProfitPerDollar(pick.odds) : -KELLY_STAKE;
+  }
+
+  // ---------------- spread model ----------------
+  // spread_line convention (verified against 855 real games): the HOME
+  // team's expected margin -- positive means home favored by that many
+  // points. Home covers when actual_margin > spread_line. The number a
+  // sportsbook actually displays for a side is the negative of that
+  // side's own expected-margin framing, hence the sign flip below.
+  function marginFor(game, mult) {
+    let z = MW.intercept;
+    FACTORS.forEach(f => { z += (MW[f.key] || 0) * mult[f.key] * (game[f.key] || 0); });
+    return z;
+  }
+
+  function evaluateSpreadGame(game, mult) {
+    if (game.spread_line === null || game.spread_line === undefined ||
+        game.home_spread_odds === null || game.home_spread_odds === undefined ||
+        game.away_spread_odds === null || game.away_spread_odds === undefined) return null;
+    const pred = marginFor(game, mult);
+    const pHomeCover = normSf((game.spread_line - pred) / RESID_STD);
+    const pAwayCover = 1 - pHomeCover;
+    const sides = [
+      { side: 'home', team: game.home, p: pHomeCover, odds: game.home_spread_odds, line: -game.spread_line },
+      { side: 'away', team: game.away, p: pAwayCover, odds: game.away_spread_odds, line: game.spread_line },
+    ].map(s => ({ ...s, edge: expectedValue(s.p, s.odds), req: requiredEdge(s.odds, s.p) }));
+    const best = sides[0].edge >= sides[1].edge ? sides[0] : sides[1];
+    best.betFlag = best.edge >= best.req;
+    best.predMargin = pred;
+    return best;
+  }
+
+  function profitForSpread(pick, game) {
+    if (game.home_score === null || game.home_score === undefined ||
+        game.away_score === null || game.away_score === undefined) return null;
+    const homeCovered = (game.home_score - game.away_score) > game.spread_line;
+    const won = (pick.side === 'home') === homeCovered;
+    return won ? KELLY_STAKE * americanProfitPerDollar(pick.odds) : -KELLY_STAKE;
+  }
+
+  function fmtLine(x) { return (x >= 0 ? '+' : '') + x.toFixed(1); }
+
+  // ---------------- state + slider UI ----------------
+  const state = {};
+  FACTORS.forEach(f => { state[f.key] = 3; });
+  let mode = 'week';
+  let market = 'ml';
+
+  function confidenceLabel(key) {
+    if (key === 'elo_diff') return { text: 'data: strong, confident positive signal (this factor is locked at 1x)', cls: 'strong' };
+    if (market === 'spread' && key === 'home_extra') {
+      return { text: `data: this linear model can't separate a constant term from its intercept -- coefficient is fixed at 0 here (home field is still captured through Elo)`, cls: 'weak' };
+    }
+    const weights = market === 'spread' ? MW : W;
+    const cis = market === 'spread' ? DATA.margin_confidence_intervals : DATA.confidence_intervals;
+    const ci = cis[key];
+    const spansZero = ci.lo90 < 0 && ci.hi90 > 0;
+    const dir = weights[key] >= 0 ? 'positive' : 'negative';
+    if (spansZero) return { text: `data: inconclusive at this sample size (90% CI ${ci.lo90.toFixed(2)} to ${ci.hi90.toFixed(2)}, crosses zero)`, cls: 'weak' };
+    return { text: `data: ${dir} signal (90% CI ${ci.lo90.toFixed(2)} to ${ci.hi90.toFixed(2)})`, cls: 'strong' };
+  }
+
+  function buildSliders() {
+    const el = document.getElementById('sliders');
+    el.innerHTML = '';
+    FACTORS.forEach(f => {
+      const block = document.createElement('div');
+      block.className = 'slider-block';
+      const conf = confidenceLabel(f.key);
+      block.innerHTML = `
+        <div class="slider-top"><span class="slider-name">${f.label}</span><span class="slider-mult" id="mult-${f.key}"></span></div>
+        <div class="slider-conf ${conf.cls}">${conf.text}</div>
+        <input type="range" min="1" max="5" step="1" value="${state[f.key]}" id="slider-${f.key}" ${f.locked ? 'disabled' : ''}>
+        <div class="tick-row"><span>1&times; off</span><span>2</span><span>3&times; data</span><span>4</span><span>5&times; 2x</span></div>
+      `;
+      el.appendChild(block);
+      updateMultLabel(f.key);
+      if (!f.locked) {
+        document.getElementById(`slider-${f.key}`).addEventListener('input', (e) => {
+          state[f.key] = parseInt(e.target.value, 10);
+          updateMultLabel(f.key);
+          renderAll();
+        });
+      }
+    });
+  }
+  function updateMultLabel(key) {
+    const mult = key === 'elo_diff' ? 1 : POS_TO_MULT[state[key]];
+    document.getElementById(`mult-${key}`).textContent = mult.toFixed(1) + '×';
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    FACTORS.forEach(f => { state[f.key] = 3; const s = document.getElementById(`slider-${f.key}`); if (s) s.value = 3; updateMultLabel(f.key); });
+    renderAll();
+  });
+
+  // ---------------- betting-bar slider ----------------
+  // This drives the "base" component of the same required-edge formula
+  // ev.py uses (GUARD.edgeMinBase, default 2% -- nfl_edge's own guardrail
+  // default). The short-favorite / long-underdog / coin-flip add-ons still
+  // stack on top, same as everywhere else on this page and in the CLI.
+  function updateEdgeLabel(pct) {
+    document.getElementById('edge-value').textContent = '≥ ' + pct.toFixed(1) + '%';
+  }
+  document.getElementById('edge-conf').textContent =
+    'Stacks with the built-in safeguards: +2% for short favorites (≤−250), +2% for big underdogs (+300 or longer), +1% for near-coin-flip games.';
+  updateEdgeLabel(GUARD.edgeMinBase * 100);
+  document.getElementById('edgeSlider').addEventListener('input', (e) => {
+    const pct = parseFloat(e.target.value);
+    GUARD.edgeMinBase = pct / 100;
+    updateEdgeLabel(pct);
+    renderAll();
+  });
+
+  // ---------------- mode + market toggles ----------------
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      mode = btn.dataset.mode;
+      document.getElementById('view-week').style.display = mode === 'week' ? '' : 'none';
+      document.getElementById('view-backtest').style.display = mode === 'backtest' ? '' : 'none';
+      document.getElementById('view-tracker').style.display = mode === 'tracker' ? '' : 'none';
+      // The track record tab shows both markets side by side in one
+      // table, so the moneyline/spread toggle doesn't apply there.
+      document.getElementById('marketToggle').style.display = mode === 'tracker' ? 'none' : '';
+      document.getElementById('marketSep').style.display = mode === 'tracker' ? 'none' : '';
+      if (mode === 'tracker') renderTracker();
+    });
+  });
+  document.querySelectorAll('.market-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.market-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      market = btn.dataset.market;
+      buildSliders();   // confidence text is model-specific -- refresh it
+      renderAll();
+      updateBtDisclaimer();
+    });
+  });
+
+  // ---------------- render: this week ----------------
+  const ML_HEAD = '<tr><th>Game</th><th>Pick</th><th class="num">Prob.</th><th class="num">Best ML</th><th class="num">Fair ML</th><th class="num">EV</th><th>Bet?</th></tr>';
+  const SPREAD_HEAD = '<tr><th>Game</th><th>Pick</th><th class="num">Cover%</th><th class="num">Line</th><th class="num">Price</th><th class="num">EV</th><th>Bet?</th></tr>';
+
+  function renderWeek() {
+    const mult = currentMultipliers();
+    document.getElementById('week-head').innerHTML = market === 'spread' ? SPREAD_HEAD : ML_HEAD;
+
+    let rowsHtml, nGames, nBets;
+    if (market === 'spread') {
+      const games = DATA.next_week.games.map(g => ({ g, pick: evaluateSpreadGame(g, mult) })).filter(x => x.pick);
+      games.sort((a, b) => b.pick.edge - a.pick.edge);
+      nGames = games.length; nBets = games.filter(x => x.pick.betFlag).length;
+      rowsHtml = games.length ? games.map(({ g, pick }) => `
+        <tr>
+          <td>${g.away} @ ${g.home}</td>
+          <td>${pick.team}<span class="side-tag ${pick.side}">${pick.side.toUpperCase()}</span></td>
+          <td class="num">${(pick.p * 100).toFixed(1)}%</td>
+          <td class="num">${fmtLine(pick.line)}</td>
+          <td class="num">${pick.odds > 0 ? '+' : ''}${pick.odds.toFixed(0)}</td>
+          <td class="num ${pick.edge >= 0 ? 'pos' : 'neg'}">${pick.edge >= 0 ? '+' : ''}${(pick.edge * 100).toFixed(1)}%</td>
+          <td><span class="pill ${pick.betFlag ? 'yes' : 'no'}">${pick.betFlag ? 'YES' : 'no'}</span></td>
+        </tr>
+      `).join('') : '<tr class="loading-row"><td colspan="7">No spread lines available for this week&rsquo;s games yet.</td></tr>';
+    } else {
+      const games = DATA.next_week.games.map(g => ({ g, pick: evaluateGame(g, mult) }));
+      games.sort((a, b) => b.pick.edge - a.pick.edge);
+      nGames = games.length; nBets = games.filter(x => x.pick.betFlag).length;
+      rowsHtml = games.map(({ g, pick }) => `
+        <tr>
+          <td>${g.away} @ ${g.home}</td>
+          <td>${pick.team}<span class="side-tag ${pick.side}">${pick.side.toUpperCase()}</span></td>
+          <td class="num">${(pick.p * 100).toFixed(1)}%</td>
+          <td class="num">${pick.odds > 0 ? '+' : ''}${pick.odds.toFixed(0)}</td>
+          <td class="num">${pick.fair > 0 ? '+' : ''}${pick.fair.toFixed(0)}</td>
+          <td class="num ${pick.edge >= 0 ? 'pos' : 'neg'}">${pick.edge >= 0 ? '+' : ''}${(pick.edge * 100).toFixed(1)}%</td>
+          <td><span class="pill ${pick.betFlag ? 'yes' : 'no'}">${pick.betFlag ? 'YES' : 'no'}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('week-kpis').innerHTML = `
+      <div class="kpi"><div class="label">Week</div><div class="value">${DATA.next_week.season} &middot; W${DATA.next_week.week}</div><div class="sub">${nGames} games</div></div>
+      <div class="kpi"><div class="label">Flagged bets</div><div class="value">${nBets}</div><div class="sub">of ${nGames} games &middot; ≥${(GUARD.edgeMinBase * 100).toFixed(1)}% edge</div></div>
+    `;
+    document.getElementById('week-body').innerHTML = rowsHtml;
+
+    const attempted = DATA.next_week.n_forecast_attempted || 0;
+    const used = DATA.next_week.n_forecast_used || 0;
+    const noteEl = document.getElementById('forecastNote');
+    if (attempted === 0) {
+      noteEl.textContent = 'Weather: no outdoor/open-air games this week needed a forecast.';
+      noteEl.classList.remove('live');
+    } else if (used === 0) {
+      noteEl.textContent = `Weather forecast: 0 of ${attempted} outdoor games got a live forecast this run (the forecast API wasn't reachable from here) -- weather is treated as neutral for all of them below, not necessarily calm.`;
+      noteEl.classList.remove('live');
+    } else {
+      noteEl.textContent = `Weather forecast: ${used} of ${attempted} outdoor games got a live forecast this run.` + (used < attempted ? ` ${attempted - used} fell back to neutral (unreachable or too far out to forecast).` : '');
+      noteEl.classList.add('live');
+    }
+  }
+
+  // ---------------- render: backtest ----------------
+  function stats(profits) {
+    const p = profits.filter(x => x !== null && x !== undefined);
+    const n = p.length;
+    if (!n) return { n: 0, win: NaN, units: NaN, roi: NaN };
+    const wins = p.filter(x => x > 0).length;
+    const total = p.reduce((a, b) => a + b, 0);
+    return { n, win: 100 * wins / n, units: total / KELLY_STAKE, roi: 100 * total / (n * KELLY_STAKE) };
+  }
+
+  function kpi(label, s, sub) {
+    const cls = s.roi >= 0 ? 'pos' : 'neg';
+    return `<div class="kpi"><div class="label">${label}</div><div class="value ${cls}">${isNaN(s.roi) ? '—' : (s.roi >= 0 ? '+' : '') + s.roi.toFixed(1) + '%'}</div><div class="sub">${sub}</div></div>`;
+  }
+  function row(label, s) {
+    const roiCls = s.roi >= 0 ? 'pos' : 'neg';
+    return `<tr><td>${label}</td><td class="num">${s.n}</td><td class="num">${isNaN(s.win) ? '—' : s.win.toFixed(1) + '%'}</td><td class="num ${roiCls}">${isNaN(s.units) ? '—' : (s.units >= 0 ? '+' : '') + s.units.toFixed(1)}</td><td class="num ${roiCls}">${isNaN(s.roi) ? '—' : (s.roi >= 0 ? '+' : '') + s.roi.toFixed(2) + '%'}</td></tr>`;
+  }
+
+  function renderBacktest() {
+    const mult = currentMultipliers();
+    if (market === 'spread') {
+      const all = [], flagged = [], home = [], away = [];
+      DATA.backtest_games.forEach(g => {
+        const pick = evaluateSpreadGame(g, mult);
+        if (!pick) return;
+        const profit = profitForSpread(pick, g);
+        if (profit === null) return;
+        all.push(profit);
+        if (pick.betFlag) flagged.push(profit);
+        (pick.side === 'home' ? home : away).push(profit);
+      });
+      const sAll = stats(all), sFlag = stats(flagged), sHome = stats(home), sAway = stats(away);
+      document.getElementById('bt-kpis').innerHTML =
+        kpi('All picks ROI', sAll, `n=${sAll.n} · ${isNaN(sAll.win) ? '—' : sAll.win.toFixed(1) + '% covered'}`) +
+        kpi('Flagged ROI', sFlag, `n=${sFlag.n} · ≥${(GUARD.edgeMinBase * 100).toFixed(1)}% edge`) +
+        kpi('Home-pick ROI', sHome, `n=${sHome.n}`) +
+        kpi('Away-pick ROI', sAway, `n=${sAway.n}`);
+      document.getElementById('bt-body').innerHTML =
+        row('All picks', sAll) + row(`Flagged only (≥${(GUARD.edgeMinBase * 100).toFixed(1)}% edge)`, sFlag) + row('Picked home side', sHome) + row('Picked away side', sAway);
+    } else {
+      const all = [], flagged = [], fav = [], dog = [];
+      DATA.backtest_games.forEach(g => {
+        const pick = evaluateGame(g, mult);
+        const profit = profitFor(pick, g);
+        if (profit === null) return;
+        all.push(profit);
+        if (pick.betFlag) flagged.push(profit);
+        (pick.odds < 0 ? fav : dog).push(profit);
+      });
+      const sAll = stats(all), sFlag = stats(flagged), sFav = stats(fav), sDog = stats(dog);
+      document.getElementById('bt-kpis').innerHTML =
+        kpi('All picks ROI', sAll, `n=${sAll.n} · ${isNaN(sAll.win) ? '—' : sAll.win.toFixed(1) + '% win'}`) +
+        kpi('Flagged ROI', sFlag, `n=${sFlag.n} · ≥${(GUARD.edgeMinBase * 100).toFixed(1)}% edge`) +
+        kpi('Favorite picks ROI', sFav, `n=${sFav.n}`) +
+        kpi('Underdog picks ROI', sDog, `n=${sDog.n}`);
+      document.getElementById('bt-body').innerHTML =
+        row('All picks', sAll) + row(`Flagged only (≥${(GUARD.edgeMinBase * 100).toFixed(1)}% edge)`, sFlag) + row('Favorite picks', sFav) + row('Underdog picks', sDog);
+    }
+  }
+
+  function updateBtDisclaimer() {
+    const cmd = market === 'spread'
+      ? 'python -m nfl_edge.cli spread-backtest --qb &lt;mult&gt; --weather &lt;mult&gt; --rest &lt;mult&gt; --div &lt;mult&gt; --epa-off &lt;mult&gt; --epa-def &lt;mult&gt; --sack-allowed &lt;mult&gt; --sack-generated &lt;mult&gt; --travel-distance &lt;mult&gt; --travel-tz &lt;mult&gt;'
+      : 'python -m nfl_edge.cli multifactor-backtest --qb &lt;mult&gt; --weather &lt;mult&gt; --home &lt;mult&gt; --epa-off &lt;mult&gt; --epa-def &lt;mult&gt; --sack-allowed &lt;mult&gt; --sack-generated &lt;mult&gt; --travel-distance &lt;mult&gt; --travel-tz &lt;mult&gt;';
+    document.getElementById('btDisclaimer').innerHTML =
+      `These numbers use ${market === 'spread' ? 'a margin regression' : 'base weights'} fit <b>once</b> on the whole 2023&ndash;2025 window ` +
+      `(fast, so dragging a slider updates instantly) &mdash; not the week-by-week walk-forward refit the project treats as the honest test ` +
+      `elsewhere. Found a setting that looks good here? Confirm it for real with <code>${cmd}</code>, which reruns it the rigorous way ` +
+      `(the betting-bar slider is a page-only filter for now &mdash; it isn't a CLI flag, so re-run at the guardrail default and eyeball which ` +
+      `rows would've cleared your bar).`;
+  }
+
+  function renderAll() { renderWeek(); renderBacktest(); }
+
+  // ---------------- render: track record ----------------
+  // Unlike the other two tabs, this one is NOT reactive to the sliders --
+  // it shows what was actually locked in (default 1x weights) before
+  // each game, and never recomputes it with hindsight. See tracker.py.
+  let trackerWeekIdx = -1; // -1 = "not chosen yet" -> defaults to the most recent tracked week
+
+  function pickCell(side, home, away) {
+    if (!side) return '&mdash;';
+    const team = side === 'home' ? home : away;
+    return `${team}<span class="side-tag ${side}">${side.toUpperCase()}</span>`;
+  }
+  function mlResultPill(g) {
+    if (!g.graded_at) return '<span class="pill pending">pending</span>';
+    if (g.ml_actual === 'tie') return '<span class="pill push">tie</span>';
+    return g.ml_correct ? '<span class="pill correct">&check; correct</span>' : '<span class="pill incorrect">&cross; wrong</span>';
+  }
+  function spreadResultPill(g) {
+    if (g.spread_pick === null || g.spread_pick === undefined) return '&mdash;';
+    if (!g.graded_at) return '<span class="pill pending">pending</span>';
+    if (g.spread_actual === 'push') return '<span class="pill push">push</span>';
+    return g.spread_correct ? '<span class="pill correct">&check; correct</span>' : '<span class="pill incorrect">&cross; wrong</span>';
+  }
+  function spreadLineForPick(g) {
+    if (g.spread_line === null || g.spread_line === undefined || !g.spread_pick) return '';
+    return ' ' + fmtLine(g.spread_pick === 'home' ? -g.spread_line : g.spread_line);
+  }
+  // Confidence-pool ranking: 1 (coin flip) through the week's game count
+  // (most lopsided pick), plus the model probability behind it -- see
+  // tracker.py's _assign_confidence for how it's computed and locked.
+  function confCell(rank, prob) {
+    if (rank === null || rank === undefined) return '&mdash;';
+    const pct = (prob === null || prob === undefined) ? '' : `<span class="conf-pct">${Math.round(prob * 100)}%</span>`;
+    return `<span class="conf-num">${rank}</span>${pct}`;
+  }
+
+  function renderTracker() {
+    const tw = DATA.tracked_weeks;
+    const rec = tw.record;
+    const mlTotal = rec.ml_wins + rec.ml_losses;
+    const spTotal = rec.spread_wins + rec.spread_losses;
+    const mlPct = mlTotal ? (100 * rec.ml_wins / mlTotal).toFixed(1) + '%' : '—';
+    const spPct = spTotal ? (100 * rec.spread_wins / spTotal).toFixed(1) + '%' : '—';
+    document.getElementById('tracker-kpis').innerHTML = `
+      <div class="kpi"><div class="label">Moneyline record</div><div class="value">${rec.ml_wins}-${rec.ml_losses}</div><div class="sub">${mlPct} correct${mlTotal ? '' : ' · none graded yet'}</div></div>
+      <div class="kpi"><div class="label">Against the spread</div><div class="value">${rec.spread_wins}-${rec.spread_losses}${rec.spread_pushes ? '-' + rec.spread_pushes : ''}</div><div class="sub">${spPct} correct${rec.spread_pushes ? ' · ' + rec.spread_pushes + ' push' + (rec.spread_pushes > 1 ? 'es' : '') : (spTotal ? '' : ' · none graded yet')}</div></div>
+      <div class="kpi"><div class="label">Weeks tracked</div><div class="value">${tw.weeks.length}</div><div class="sub">since this feature shipped</div></div>
+    `;
+
+    if (!tw.weeks.length) {
+      document.getElementById('tracker-weeks').innerHTML = '';
+      document.getElementById('tracker-body').innerHTML =
+        '<tr class="loading-row"><td colspan="8">No tracked weeks yet &mdash; check back after the next refresh locks in a week&rsquo;s picks.</td></tr>';
+      return;
+    }
+    if (trackerWeekIdx < 0 || trackerWeekIdx >= tw.weeks.length) trackerWeekIdx = tw.weeks.length - 1;
+
+    document.getElementById('tracker-weeks').innerHTML = tw.weeks.map((wk, i) =>
+      `<button class="week-pill ${i === trackerWeekIdx ? 'active' : ''}" data-idx="${i}">${wk.season} &middot; Wk ${wk.week}</button>`
+    ).join('');
+    document.querySelectorAll('.week-pill').forEach(btn => {
+      btn.addEventListener('click', () => { trackerWeekIdx = parseInt(btn.dataset.idx, 10); renderTracker(); });
+    });
+
+    const wk = tw.weeks[trackerWeekIdx];
+    // Most-confident-first by default -- this table doubles as a
+    // confidence-pool cheat sheet, so the order it's read in matters.
+    const gamesRanked = [...wk.games].sort((a, b) => (b.confidence ?? -1) - (a.confidence ?? -1));
+    document.getElementById('tracker-body').innerHTML = gamesRanked.map(g => `
+      <tr>
+        <td>${g.away} @ ${g.home}</td>
+        <td class="num">${g.home_score !== null ? Math.round(g.away_score) + '&ndash;' + Math.round(g.home_score) : '&mdash;'}</td>
+        <td>${pickCell(g.ml_pick, g.home, g.away)}</td>
+        <td class="num">${confCell(g.confidence, g.ml_pick_prob)}</td>
+        <td>${mlResultPill(g)}</td>
+        <td>${pickCell(g.spread_pick, g.home, g.away)}${spreadLineForPick(g)}</td>
+        <td class="num">${confCell(g.spread_confidence, g.spread_pick_prob)}</td>
+        <td>${spreadResultPill(g)}</td>
+      </tr>
+    `).join('');
+  }
+
+  buildSliders();
+  renderAll();
+  updateBtDisclaimer();
+  renderTracker();
+  document.getElementById('trackerDisclaimer').innerHTML =
+    `Predictions here are locked in the moment a game first shows up as &ldquo;next week&rdquo;, always at default (1&times;) weights on every ` +
+    `factor &mdash; dragging a slider elsewhere on this page doesn&rsquo;t change what&rsquo;s recorded here, and a game&rsquo;s locked pick is ` +
+    `never revised afterward, even once more data exists. This tracks games going forward from when this tab shipped &mdash; it does not ` +
+    `backfill the 2023&ndash;2025 training window, which the &ldquo;Full backtest&rdquo; tab already covers under any slider setting you choose. ` +
+    `A week shows &ldquo;pending&rdquo; results until its games are final and the page is next refreshed. ` +
+    `<b>ML conf / Spread conf</b> rank that week&rsquo;s games by the model&rsquo;s own pick probability (shown underneath each rank) &mdash; ` +
+    `the most lopsided call gets the week&rsquo;s game count, the closest to a coin flip gets 1, moneyline and spread ranked separately since ` +
+    `they don&rsquo;t always agree on which game is &ldquo;safest.&rdquo; Handy for filling out a real confidence pool or picking your ` +
+    `most-confident few for something like a pick&rsquo;em game &mdash; ranked and locked the same moment the picks themselves are, for the ` +
+    `same reason.`;
+  document.getElementById('genDate').textContent = new Date(DATA.generated).toISOString().slice(0, 10);
+  document.getElementById('dataConfidenceNote').innerHTML =
+    `<b>Reading the sliders:</b> confidence varies by factor and by which market (moneyline/spread) is selected -- the panel on the left tells ` +
+    `you, per slider, whether its 90% confidence interval clears zero in this sample (fit on ${DATA.n_fit} moneyline games / ${DATA.margin_n_fit} ` +
+    `spread games). Most factors have intervals that cross zero — the data can’t confidently tell you they help <i>or</i> hurt yet. That’s not a ` +
+    `reason to hide the sliders; it’s the reason they exist — drag one up if you believe in it, and the backtest tab shows you the real ` +
+    `consequence instead of a guess. ` +
+    `<b>Reading the betting bar:</b> raising it doesn't guarantee a profitable slice — in the walk-forward backtest, picks that already cleared ` +
+    `the default 2% bar still lost money overall, so a higher bar mainly trades bet volume for pickiness, not a promise of profit. Real-money ` +
+    `sports betting is genuinely hard to beat long-term; treat every number on this page as a research toy, not a plan.`;
+})();
+</script>
+
+<script>
+  // Registers the PWA service worker so the page is installable to a home
+  // screen and keeps working (on last-known data) with no signal. A no-op,
+  // harmless failure when served somewhere that doesn't ship sw.js next to
+  // this file (e.g. a raw local preview).
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+data/nfl_edge.sqlite
+data/raw/*.csv
+data/raw/epa/
+data/raw/pressure/
+*.egg-info/
+data/processed/client_data.json
+build/

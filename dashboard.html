@@ -1,0 +1,418 @@
+<title>NFL Edge Backtest</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  :root {
+    --surface-0:   #f6f4ef;
+    --surface-1:   #ffffff;
+    --surface-2:   #edeae2;
+    --border:      #ddd8cb;
+    --text-primary:   #17181a;
+    --text-secondary: #5c5c56;
+    --text-muted:     #8a897f;
+    --accent:      #1c5cab;
+    --accent-soft: #e4edf9;
+    --good:        #0ca30c;
+    --good-soft:   #e4f5e2;
+    --critical:    #d03b3b;
+    --critical-soft: #fbe9e7;
+    --axis:        #cac6b8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface-0:   #16181a;
+      --surface-1:   #1e2124;
+      --surface-2:   #26292c;
+      --border:      #34373a;
+      --text-primary:   #f3f2ee;
+      --text-secondary: #b7b6ad;
+      --text-muted:     #85847b;
+      --accent:      #6ea6e8;
+      --accent-soft: #22344a;
+      --good:        #0ca30c;
+      --good-soft:   #16321a;
+      --critical:    #d03b3b;
+      --critical-soft: #3a1e1e;
+      --axis:        #3c3f42;
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface-0:   #16181a;
+    --surface-1:   #1e2124;
+    --surface-2:   #26292c;
+    --border:      #34373a;
+    --text-primary:   #f3f2ee;
+    --text-secondary: #b7b6ad;
+    --text-muted:     #85847b;
+    --accent:      #6ea6e8;
+    --accent-soft: #22344a;
+    --good:        #0ca30c;
+    --good-soft:   #16321a;
+    --critical:    #d03b3b;
+    --critical-soft: #3a1e1e;
+    --axis:        #3c3f42;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--surface-0);
+    color: var(--text-primary);
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: 'tnum' 1;
+    padding: 0 20px 64px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+
+  header { padding: 40px 0 28px; border-bottom: 1px solid var(--border); }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); font-weight: 500; margin-bottom: 10px;
+  }
+  h1 {
+    font-family: 'Archivo', sans-serif; font-weight: 900;
+    font-size: clamp(28px, 4.4vw, 42px); line-height: 1.02; letter-spacing: -0.01em;
+    margin: 0 0 12px; text-wrap: balance;
+  }
+  header p { color: var(--text-secondary); font-size: 15px; max-width: 62ch; line-height: 1.55; margin: 0; }
+  header p strong { color: var(--text-primary); font-weight: 600; }
+
+  .meta-row {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px;
+  }
+  .meta-chip {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-secondary);
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px;
+    padding: 4px 9px;
+  }
+
+  section { padding: 36px 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: none; }
+
+  .kpi-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px;
+    background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+  }
+  .kpi {
+    background: var(--surface-1); padding: 18px 18px 16px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .kpi .label { font-size: 11.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+  .kpi .value {
+    font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 25px; line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .kpi .sub { font-size: 12px; color: var(--text-secondary); }
+  .kpi .value.pos { color: var(--good); }
+  .kpi .value.neg { color: var(--critical); }
+
+  h2 {
+    font-family: 'Archivo', sans-serif; font-weight: 700; font-size: 21px;
+    margin: 0 0 6px; letter-spacing: -0.005em;
+  }
+  .section-intro { color: var(--text-secondary); font-size: 14.5px; line-height: 1.6; max-width: 68ch; margin: 0 0 22px; }
+  .section-intro strong { color: var(--text-primary); font-weight: 600; }
+  .finding {
+    background: var(--accent-soft); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0; padding: 14px 18px; font-size: 14px; line-height: 1.6; color: var(--text-primary);
+    margin: 18px 0 0;
+  }
+  .finding b { font-weight: 700; }
+
+  .chart-card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px 20px 14px; position: relative;
+  }
+  .chart-legend { display: flex; gap: 18px; margin-bottom: 4px; font-size: 12.5px; color: var(--text-secondary); }
+  .chart-legend .item { display: flex; align-items: center; gap: 6px; }
+  .chart-legend .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+  svg text { font-family: 'JetBrains Mono', monospace; }
+  .bar-cat-label { font-family: 'Inter', sans-serif; }
+
+  .tooltip {
+    position: absolute; pointer-events: none; opacity: 0; transition: opacity 0.1s;
+    background: var(--text-primary); color: var(--surface-1); font-size: 12px;
+    font-family: 'JetBrains Mono', monospace; padding: 7px 10px; border-radius: 6px;
+    line-height: 1.5; white-space: nowrap; z-index: 5; transform: translate(-50%, -100%);
+  }
+  .tooltip b { font-weight: 700; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { font-family: 'JetBrains Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 500; }
+  td.num, th.num { text-align: right; font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+  td.pos { color: var(--good); font-weight: 600; }
+  td.neg { color: var(--critical); font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+
+  ol.next-steps { margin: 14px 0 0; padding-left: 22px; color: var(--text-secondary); font-size: 14px; line-height: 1.8; }
+  ol.next-steps li strong { color: var(--text-primary); }
+
+  footer { padding: 30px 0 10px; color: var(--text-muted); font-size: 12.5px; line-height: 1.7; }
+  footer code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">nfl_edge &middot; walk-forward backtest</div>
+    <h1>Does the model actually have an edge?</h1>
+    <p>
+      855 games, seasons <strong>2023&ndash;2025</strong>, graded against real historical
+      closing moneylines with a flat $10 stake. Every prediction uses only information
+      known before kickoff &mdash; Elo ratings update game by game with no lookahead, and the
+      calibration curve is refit weekly on prior games only. This is the honest test the
+      original brief asked for: not one good week, the whole window.
+    </p>
+    <div class="meta-row">
+      <span class="meta-chip">n = 855 games</span>
+      <span class="meta-chip">training window 2023&ndash;2025</span>
+      <span class="meta-chip">calibration: Platt</span>
+      <span class="meta-chip">stake: $10 flat</span>
+      <span class="meta-chip">generated 2026-09-04</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>Headline</h2>
+    <p class="section-intro">The core rule from the brief &mdash; bet whichever side has the higher computed EV &mdash; tested negative both with and without guardrails applied.</p>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="label">All model picks</div><div class="value neg">&minus;8.2%</div><div class="sub">ROI &middot; n=855 &middot; 40.5% win</div></div>
+      <div class="kpi"><div class="label">Guardrail-flagged only</div><div class="value neg">&minus;9.5%</div><div class="sub">ROI &middot; n=630 &middot; 36.0% win</div></div>
+      <div class="kpi"><div class="label">Total units lost</div><div class="value neg">&minus;70.1</div><div class="sub">of 855 $10 units, all picks</div></div>
+      <div class="kpi"><div class="label">Favorites picked</div><div class="value pos">+0.8%</div><div class="sub">ROI &middot; n=268 &middot; near breakeven</div></div>
+      <div class="kpi"><div class="label">Underdogs picked</div><div class="value neg">&minus;12.3%</div><div class="sub">ROI &middot; n=587 &middot; the whole problem</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Favorite vs. underdog picks</h2>
+    <p class="section-intro">
+      The EV rule selects an underdog <strong>69% of the time</strong> &mdash; and loses badly on
+      them, while the favorite picks it does make are close to a fair, efficient market.
+    </p>
+    <div class="chart-card">
+      <div class="chart-legend">
+        <span class="item"><span class="swatch" style="background:var(--good)"></span>positive ROI</span>
+        <span class="item"><span class="swatch" style="background:var(--critical)"></span>negative ROI</span>
+      </div>
+      <svg id="chart-favdog" width="100%" viewBox="0 0 900 300" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="finding">
+      <b>Why:</b> sportsbooks shade underdog prices to account for the public overbetting
+      longshots (favorite&ndash;longshot bias). When a simple Elo model disagrees with the
+      market most on a big underdog, that gap is far more often the model being wrong
+      than the market being wrong &mdash; but the &ldquo;take the higher-EV side&rdquo; rule can&rsquo;t tell
+      the difference.
+    </div>
+  </section>
+
+  <section>
+    <h2>By claimed edge</h2>
+    <p class="section-intro">
+      If the edge number meant what it claims, ROI should climb as claimed edge rises.
+      Instead it&rsquo;s roughly the opposite &mdash; the biggest &ldquo;edges&rdquo; are the least reliable ones.
+    </p>
+    <div class="chart-card">
+      <div class="chart-legend">
+        <span class="item"><span class="swatch" style="background:var(--good)"></span>positive ROI</span>
+        <span class="item"><span class="swatch" style="background:var(--critical)"></span>negative ROI</span>
+      </div>
+      <svg id="chart-edge" width="100%" viewBox="0 0 900 300" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="finding">
+      <b>Takeaway:</b> tightening the required edge for underdogs (tested at up to +15%)
+      only shrinks the sample &mdash; it doesn&rsquo;t fix the ROI. This is a calibration problem,
+      not a threshold problem.
+    </div>
+  </section>
+
+  <section>
+    <h2>By market price</h2>
+    <p class="section-intro">The same story from a different angle: favorite-side buckets (negative odds) cluster near or above breakeven; underdog-side buckets are uniformly underwater.</p>
+    <div class="chart-card">
+      <div class="chart-legend">
+        <span class="item"><span class="swatch" style="background:var(--good)"></span>positive ROI</span>
+        <span class="item"><span class="swatch" style="background:var(--critical)"></span>negative ROI</span>
+      </div>
+      <svg id="chart-odds" width="100%" viewBox="0 0 900 320" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+  </section>
+
+  <section>
+    <h2>Five baselines, side by side</h2>
+    <p class="section-intro">The brief's own prescribed comparison (section 18). Simpler rules &mdash; just take the favorite, just take whichever side the model thinks is more likely to win &mdash; beat the EV-maximizing rule this build currently implements.</p>
+    <div class="chart-card">
+      <div class="chart-legend">
+        <span class="item"><span class="swatch" style="background:var(--good)"></span>positive ROI</span>
+        <span class="item"><span class="swatch" style="background:var(--critical)"></span>negative ROI</span>
+      </div>
+      <svg id="chart-baseline" width="100%" viewBox="0 0 900 300" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Baseline</th><th class="num">n</th><th class="num">Win%</th><th class="num">Units</th><th class="num">ROI</th></tr></thead>
+        <tbody>
+          <tr><td>1&ensp;&middot;&ensp;Always home</td><td class="num">855</td><td class="num">54.9%</td><td class="num neg">&minus;44.4</td><td class="num neg">&minus;5.2%</td></tr>
+          <tr><td>2&ensp;&middot;&ensp;Always favorite</td><td class="num">855</td><td class="num">67.8%</td><td class="num neg">&minus;6.8</td><td class="num neg">&minus;0.8%</td></tr>
+          <tr><td>3&ensp;&middot;&ensp;Highest model probability</td><td class="num">855</td><td class="num">64.4%</td><td class="num neg">&minus;25.8</td><td class="num neg">&minus;3.0%</td></tr>
+          <tr><td>4&ensp;&middot;&ensp;Highest EV (no guardrails)</td><td class="num">855</td><td class="num">40.5%</td><td class="num neg">&minus;70.1</td><td class="num neg">&minus;8.2%</td></tr>
+          <tr><td>5&ensp;&middot;&ensp;Highest EV + guardrails</td><td class="num">630</td><td class="num">36.0%</td><td class="num neg">&minus;60.0</td><td class="num neg">&minus;9.5%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>What to test next</h2>
+    <p class="section-intro">In priority order &mdash; each should go through the same walk-forward backtest before being trusted, never adopted off one good week.</p>
+    <ol class="next-steps">
+      <li><strong>Shrink toward the market.</strong> Blend model probability with the market's no-vig implied probability before computing EV (e.g. 30% model / 70% market) &mdash; directly targets the underdog overconfidence found above.</li>
+      <li><strong>Cap or exclude long underdogs</strong> from consideration rather than trying to fix them with a higher edge bar, which this run showed doesn't work.</li>
+      <li><strong>Situational features</strong> (rest, short week, travel, divisional games) &mdash; only if a feature demonstrably improves the backtest, since the market already prices most of this in.</li>
+      <li><strong>Training-window sensitivity</strong> &mdash; compare 2022&ndash;2025 vs. 2023&ndash;2025 vs. season-weighted, holding everything else fixed.</li>
+      <li><strong>Closing-line value</strong> &mdash; once a season of live snapshots accumulates, check whether the line moves toward the model's picks after they're made.</li>
+    </ol>
+  </section>
+
+  <footer>
+    Generated from <code>nfl_edge.backtest.walk_forward_backtest()</code>, full detail in <code>data/processed/backtest_2023_2025.csv</code>.
+    Re-run <code>python -m nfl_edge.cli backtest</code> after any model change and compare against these numbers before trusting a change.
+  </footer>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+(function () {
+  const tooltip = document.getElementById('tooltip');
+  const cs = getComputedStyle(document.body);
+  const col = name => cs.getPropertyValue(name).trim();
+
+  function showTip(evt, html) {
+    tooltip.innerHTML = html;
+    tooltip.style.opacity = '1';
+    const rect = evt.currentTarget.closest('.chart-card').getBoundingClientRect();
+    const scrollY = window.scrollY, scrollX = window.scrollX;
+    tooltip.style.left = (evt.clientX + scrollX) + 'px';
+    tooltip.style.top = (evt.clientY + scrollY - 12) + 'px';
+  }
+  function hideTip() { tooltip.style.opacity = '0'; }
+
+  // Diverging bar chart: categories on x, value (can be +/-) on y, zero baseline.
+  function drawDivergingChart(svgId, data, opts) {
+    const svg = document.getElementById(svgId);
+    const vb = svg.viewBox.baseVal;
+    const W = vb.width, H = vb.height;
+    const padL = 46, padR = 16, padT = 14, padB = opts.tallLabels ? 56 : 40;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+
+    const maxAbs = Math.max(...data.map(d => Math.abs(d.value)), opts.minScale || 5);
+    const scale = v => (v / maxAbs) * (plotH / 2);
+    const zeroY = padT + plotH / 2;
+
+    const n = data.length;
+    const slot = plotW / n;
+    const barW = Math.min(slot * 0.56, 64);
+
+    const ns = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs) {
+      const e = document.createElementNS(ns, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    svg.innerHTML = '';
+    // zero baseline
+    svg.appendChild(el('line', { x1: padL, x2: W - padR, y1: zeroY, y2: zeroY, stroke: col('--axis'), 'stroke-width': 1 }));
+    // y-axis ticks at +/- maxAbs/2 and maxAbs (rounded)
+    const step = maxAbs > 20 ? 10 : maxAbs > 8 ? 5 : 2;
+    for (let v = -Math.floor(maxAbs / step) * step; v <= maxAbs; v += step) {
+      if (v === 0) continue;
+      const y = zeroY - scale(v);
+      svg.appendChild(el('line', { x1: padL, x2: W - padR, y1: y, y2: y, stroke: col('--axis'), 'stroke-width': 0.5, opacity: 0.4 }));
+      const t = el('text', { x: padL - 8, y: y + 3, 'text-anchor': 'end', 'font-size': 10.5, fill: col('--text-muted') });
+      t.textContent = v + '%';
+      svg.appendChild(t);
+    }
+
+    data.forEach((d, i) => {
+      const cx = padL + slot * i + slot / 2;
+      const barH = Math.abs(scale(d.value));
+      const y = d.value >= 0 ? zeroY - barH : zeroY;
+      const color = d.value >= 0 ? col('--good') : col('--critical');
+
+      const rect = el('rect', {
+        x: cx - barW / 2, y: y, width: barW, height: Math.max(barH, 1),
+        rx: 4, fill: color, style: 'cursor:pointer'
+      });
+      rect.addEventListener('mousemove', (e) => showTip(e, `<b>${d.label}</b><br>ROI ${d.value >= 0 ? '+' : ''}${d.value.toFixed(1)}%<br>n = ${d.n}${d.win !== undefined ? ' &middot; ' + d.win.toFixed(1) + '% win' : ''}`));
+      rect.addEventListener('mouseleave', hideTip);
+      svg.appendChild(rect);
+
+      // value label
+      const vt = el('text', {
+        x: cx, y: d.value >= 0 ? y - 6 : y + barH + 14,
+        'text-anchor': 'middle', 'font-size': 11.5, 'font-weight': 700, fill: color
+      });
+      vt.textContent = (d.value >= 0 ? '+' : '') + d.value.toFixed(1) + '%';
+      svg.appendChild(vt);
+
+      // category label (possibly wrapped across two lines)
+      const lines = d.label.split('\n');
+      lines.forEach((ln, li) => {
+        const lt = el('text', {
+          class: 'bar-cat-label', x: cx, y: H - padB + 16 + li * 12,
+          'text-anchor': 'middle', 'font-size': 11, fill: col('--text-secondary')
+        });
+        lt.textContent = ln;
+        svg.appendChild(lt);
+      });
+      // n= label
+      const nt = el('text', {
+        class: 'bar-cat-label', x: cx, y: H - padB + 16 + lines.length * 12,
+        'text-anchor': 'middle', 'font-size': 10, fill: col('--text-muted')
+      });
+      nt.textContent = 'n=' + d.n;
+      svg.appendChild(nt);
+    });
+  }
+
+  drawDivergingChart('chart-favdog', [
+    { label: 'Favorite\npicked', value: 0.8, n: 268, win: 64.6 },
+    { label: 'Underdog\npicked', value: -12.3, n: 587, win: 29.5 },
+  ], { minScale: 15 });
+
+  drawDivergingChart('chart-edge', [
+    { label: '<0%', value: -6.81, n: 160, win: 53.1 },
+    { label: '0–2%', value: -0.31, n: 57, win: 52.6 },
+    { label: '2–5%', value: 4.22, n: 76, win: 52.6 },
+    { label: '5–10%', value: -6.57, n: 123, win: 48.0 },
+    { label: '10–20%', value: -10.57, n: 176, win: 36.4 },
+    { label: '20%+', value: -11.52, n: 245, win: 26.9 },
+  ], { minScale: 12 });
+
+  drawDivergingChart('chart-odds', [
+    { label: '≤−300', value: -9.16, n: 40, win: 75.0 },
+    { label: '−300 to\n−200', value: -9.16, n: 51, win: 64.7 },
+    { label: '−200 to\n−150', value: 4.91, n: 75, win: 66.7 },
+    { label: '−150 to\n−110', value: 2.83, n: 81, win: 58.0 },
+    { label: '−110 to\n+110', value: -2.11, n: 68, win: 48.5 },
+    { label: '+110 to\n+150', value: -19.12, n: 174, win: 35.1 },
+    { label: '+150 to\n+200', value: -12.21, n: 107, win: 31.8 },
+    { label: '+200 to\n+300', value: -9.62, n: 133, win: 25.6 },
+    { label: '≥+300', value: -5.71, n: 126, win: 19.0 },
+  ], { minScale: 20, tallLabels: true });
+
+  drawDivergingChart('chart-baseline', [
+    { label: 'Always\nhome', value: -5.19, n: 855, win: 54.9 },
+    { label: 'Always\nfavorite', value: -0.80, n: 855, win: 67.8 },
+    { label: 'Highest\nmodel prob', value: -3.02, n: 855, win: 64.4 },
+    { label: 'Highest EV\n(no guardrails)', value: -8.20, n: 855, win: 40.5 },
+    { label: 'Highest EV\n+ guardrails', value: -9.52, n: 630, win: 36.0 },
+  ], { minScale: 10, tallLabels: true });
+
+  window.addEventListener('resize', () => {
+    // SVGs are viewBox-scaled; nothing to redo on resize.
+  });
+})();
+</script>

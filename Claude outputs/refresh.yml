@@ -1,0 +1,58 @@
+name: Weekly refresh
+
+# Two ways to fire this, both need zero chat interaction with anything:
+#   1. On a schedule -- Wednesdays at 15:00 UTC, same slot the old
+#      Claude-side scheduled task used.
+#   2. On demand -- "Run workflow" here, or from the GitHub mobile app
+#      (Actions tab -> Weekly refresh -> Run workflow). That's the
+#      phone-tap button: no PC, no Claude, works from anywhere.
+on:
+  schedule:
+    - cron: "0 15 * * 3"
+  workflow_dispatch: {}
+
+# Needed so the job can commit the refreshed tracker/page back to the repo.
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Pull fresh data, refit weights, rebuild the page
+        env:
+          # Optional: set the ODDS_API_KEY repo secret if you're using a
+          # paid multi-book odds feed. Unset is fine -- the pipeline falls
+          # back to the free nflverse closing lines.
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          python -m nfl_edge.cli refresh-data
+          python -m nfl_edge.export_client_data
+          python build_tuner.py
+
+      - name: Commit refreshed tracker + published page
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/processed/tracked_predictions.json docs/index.html
+          if git diff --cached --quiet; then
+            echo "Nothing changed (no new games locked or graded) -- skipping commit."
+          else
+            git commit -m "Automated weekly refresh: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
