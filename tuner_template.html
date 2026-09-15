@@ -193,6 +193,26 @@
   .side-tag.away { background: var(--away-soft); color: var(--away); }
   .table-wrap { border: 1px solid var(--border); border-radius: 12px; overflow: auto; max-height: 560px; background: var(--surface-1); }
 
+  .user-pick { display: flex; gap: 4px; }
+  .user-pick-btn {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
+    padding: 3px 8px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2);
+    color: var(--text-muted); cursor: pointer;
+  }
+  .user-pick-btn.picked.home { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .user-pick-btn.picked.away { background: var(--away-soft); color: var(--away); border-color: var(--away); }
+  .user-pick-btn.picked.differs { box-shadow: 0 0 0 1px var(--gold) inset; }
+  .user-conf-input {
+    width: 40px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700;
+    text-align: center; padding: 3px 2px; border-radius: 5px; border: 1px solid var(--border);
+    background: var(--surface-1); color: var(--text-primary);
+  }
+  .user-conf-input:focus { outline: none; border-color: var(--accent); }
+  .differs-tag {
+    display: inline-block; margin-left: 6px; font-size: 9.5px; font-weight: 700; letter-spacing: .03em;
+    color: var(--gold); font-family: 'JetBrains Mono', monospace;
+  }
+
   .disclaimer { background: var(--accent-soft); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; padding: 13px 16px; font-size: 13px; line-height: 1.55; color: var(--text-primary); margin: 20px 0 0; }
   .disclaimer code { font-family: 'JetBrains Mono', monospace; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
@@ -285,7 +305,7 @@
         <div class="week-pills" id="tracker-weeks"></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Game</th><th class="num">Final</th><th>ML pick</th><th class="num">ML conf</th><th>ML result</th><th>Spread pick</th><th class="num">Spread conf</th><th>ATS result</th></tr></thead>
+            <thead><tr><th>Game</th><th class="num">Final</th><th>ML pick</th><th class="num">ML conf</th><th>ML result</th><th>Your pick</th><th class="num">Your conf</th><th>Spread pick</th><th class="num">Spread conf</th><th>ATS result</th></tr></thead>
             <tbody id="tracker-body"></tbody>
           </table>
         </div>
@@ -698,6 +718,24 @@
     return `<span class="conf-num">${rank}</span>${pct}`;
   }
 
+  // Your own picks, kept in this browser only (never sent anywhere) so the
+  // "final locked in picks" column has something of yours to sit next to.
+  // Straight-up winner + a 1..n confidence value per game, same shape as a
+  // confidence-pool sheet -- no spread side, since that's not what those
+  // pools ask for.
+  const USER_PICKS_KEY = 'bombsurace_user_picks';
+  function loadUserPicks() {
+    try { return JSON.parse(localStorage.getItem(USER_PICKS_KEY)) || {}; }
+    catch { return {}; }
+  }
+  function saveUserPick(gameId, field, value) {
+    try {
+      const store = loadUserPicks();
+      store[gameId] = { ...store[gameId], [field]: value };
+      localStorage.setItem(USER_PICKS_KEY, JSON.stringify(store));
+    } catch {}
+  }
+
   function renderTracker() {
     const tw = DATA.tracked_weeks;
     const rec = tw.record;
@@ -705,16 +743,30 @@
     const spTotal = rec.spread_wins + rec.spread_losses;
     const mlPct = mlTotal ? (100 * rec.ml_wins / mlTotal).toFixed(1) + '%' : '—';
     const spPct = spTotal ? (100 * rec.spread_wins / spTotal).toFixed(1) + '%' : '—';
+
+    const userPicks = loadUserPicks();
+    let youWins = 0, youLosses = 0;
+    for (const w of tw.weeks) {
+      for (const g of w.games) {
+        const yours = userPicks[g.game_id];
+        if (!yours || !yours.ml_pick || g.ml_actual === null || g.ml_actual === undefined || g.ml_actual === 'tie') continue;
+        if (yours.ml_pick === g.ml_actual) youWins++; else youLosses++;
+      }
+    }
+    const youTotal = youWins + youLosses;
+    const youPct = youTotal ? (100 * youWins / youTotal).toFixed(1) + '%' : '—';
+
     document.getElementById('tracker-kpis').innerHTML = `
       <div class="kpi"><div class="label">Moneyline record</div><div class="value">${rec.ml_wins}-${rec.ml_losses}</div><div class="sub">${mlPct} correct${mlTotal ? '' : ' · none graded yet'}</div></div>
       <div class="kpi"><div class="label">Against the spread</div><div class="value">${rec.spread_wins}-${rec.spread_losses}${rec.spread_pushes ? '-' + rec.spread_pushes : ''}</div><div class="sub">${spPct} correct${rec.spread_pushes ? ' · ' + rec.spread_pushes + ' push' + (rec.spread_pushes > 1 ? 'es' : '') : (spTotal ? '' : ' · none graded yet')}</div></div>
+      <div class="kpi"><div class="label">Your record</div><div class="value">${youTotal ? youWins + '-' + youLosses : '—'}</div><div class="sub">${youTotal ? youPct + ' correct' : 'pick a few games below'}</div></div>
       <div class="kpi"><div class="label">Weeks tracked</div><div class="value">${tw.weeks.length}</div><div class="sub">since this feature shipped</div></div>
     `;
 
     if (!tw.weeks.length) {
       document.getElementById('tracker-weeks').innerHTML = '';
       document.getElementById('tracker-body').innerHTML =
-        '<tr class="loading-row"><td colspan="8">No tracked weeks yet &mdash; check back after the next refresh locks in a week&rsquo;s picks.</td></tr>';
+        '<tr class="loading-row"><td colspan="10">No tracked weeks yet &mdash; check back after the next refresh locks in a week&rsquo;s picks.</td></tr>';
       return;
     }
     if (trackerWeekIdx < 0 || trackerWeekIdx >= tw.weeks.length) trackerWeekIdx = tw.weeks.length - 1;
@@ -730,30 +782,60 @@
     // Most-confident-first by default -- this table doubles as a
     // confidence-pool cheat sheet, so the order it's read in matters.
     const gamesRanked = [...wk.games].sort((a, b) => (b.confidence ?? -1) - (a.confidence ?? -1));
-    document.getElementById('tracker-body').innerHTML = gamesRanked.map(g => `
+    document.getElementById('tracker-body').innerHTML = gamesRanked.map(g => {
+      const yours = userPicks[g.game_id] || {};
+      const differs = yours.ml_pick && g.ml_pick && yours.ml_pick !== g.ml_pick;
+      return `
       <tr>
         <td>${g.away} @ ${g.home}</td>
         <td class="num">${g.home_score !== null ? Math.round(g.away_score) + '&ndash;' + Math.round(g.home_score) : '&mdash;'}</td>
         <td>${pickCell(g.ml_pick, g.home, g.away)}</td>
         <td class="num">${confCell(g.confidence, g.ml_pick_prob)}</td>
         <td>${mlResultPill(g)}</td>
+        <td>
+          <div class="user-pick" data-game="${g.game_id}">
+            <button type="button" class="user-pick-btn ${yours.ml_pick === 'away' ? 'picked away' : ''} ${differs && yours.ml_pick === 'away' ? 'differs' : ''}" data-side="away">${g.away}</button>
+            <button type="button" class="user-pick-btn ${yours.ml_pick === 'home' ? 'picked home' : ''} ${differs && yours.ml_pick === 'home' ? 'differs' : ''}" data-side="home">${g.home}</button>
+          </div>
+          ${differs ? '<span class="differs-tag">≠ model</span>' : ''}
+        </td>
+        <td class="num"><input type="number" class="user-conf-input" data-game="${g.game_id}" min="1" max="${wk.games.length}" value="${yours.ml_confidence ?? ''}" placeholder="&mdash;"></td>
         <td>${pickCell(g.spread_pick, g.home, g.away)}${spreadLineForPick(g)}</td>
         <td class="num">${confCell(g.spread_confidence, g.spread_pick_prob)}</td>
         <td>${spreadResultPill(g)}</td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   }
+
+  // Delegated once, not re-bound on every render -- rows come and go as
+  // the week pills switch.
+  document.getElementById('tracker-body').addEventListener('click', (e) => {
+    const btn = e.target.closest('.user-pick-btn');
+    if (!btn) return;
+    const gameId = btn.closest('.user-pick').dataset.game;
+    saveUserPick(gameId, 'ml_pick', btn.dataset.side);
+    renderTracker();
+  });
+  document.getElementById('tracker-body').addEventListener('change', (e) => {
+    const input = e.target.closest('.user-conf-input');
+    if (!input) return;
+    const val = input.value === '' ? null : Math.max(1, Math.min(parseInt(input.value, 10) || 1, parseInt(input.max, 10)));
+    saveUserPick(input.dataset.game, 'ml_confidence', val);
+    renderTracker();
+  });
 
   buildSliders();
   renderAll();
   updateBtDisclaimer();
   renderTracker();
   document.getElementById('trackerDisclaimer').innerHTML =
-    `Locked before kickoff at default weights, never revised. ` +
+    `Locked before kickoff at default weights, never revised. Tap a team under &ldquo;Your pick&rdquo; to log your own call &mdash; saved in this browser only. ` +
     `<details class="about"><summary>How the ranking works</summary><div class="about-body">` +
     `<b>ML conf / Spread conf</b> rank each week&rsquo;s games by the model&rsquo;s own pick probability &mdash; most lopsided gets the ` +
     `week&rsquo;s game count, closest to a coin flip gets 1, moneyline and spread ranked separately. Useful for a confidence pool or ` +
-    `pick&rsquo;em sheet. Tracking starts from when this tab shipped; it doesn&rsquo;t backfill 2023&ndash;2025 (see the backtest tab for that).` +
+    `pick&rsquo;em sheet. Tracking starts from when this tab shipped; it doesn&rsquo;t backfill 2023&ndash;2025 (see the backtest tab for that). ` +
+    `&ldquo;Your pick&rdquo; and &ldquo;Your conf&rdquo; live in this browser&rsquo;s storage, not the repo &mdash; they won&rsquo;t follow you to a different phone or browser.` +
     `</div></details>`;
   document.getElementById('genDate').textContent = new Date(DATA.generated).toISOString().slice(0, 10);
   document.getElementById('dataConfidenceNote').innerHTML =
